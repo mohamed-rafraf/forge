@@ -1,0 +1,27 @@
+# permissions for end users to view builds.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: build-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: forge
+    app.kubernetes.io/part-of: forge
+    app.kubernetes.io/managed-by: kustomize
+  name: build-viewer-role
+rules:
+- apiGroups:
+  - image.forge.build
+  resources:
+  - builds
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - image.forge.build
+  resources:
+  - builds/status
+  verbs:
+  - get
