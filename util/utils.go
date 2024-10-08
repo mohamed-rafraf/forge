@@ -7,6 +7,10 @@ import (
 	"reflect"
 	"strings"
 
+	"k8s.io/utils/ptr"
+
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/gobuffalo/flect"
 	"github.com/pkg/errors"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -148,6 +152,29 @@ func GetBuildByName(ctx context.Context, c client.Client, namespace, name string
 	}
 
 	return build, nil
+}
+
+func GetProvisionerByID(build *buildv1.Build, id string) (*buildv1.ProvisionerSpec, error) {
+	for i := range build.Spec.Provisioners {
+		if ptr.Deref(build.Spec.Provisioners[i].UUID, "") == id {
+			return &build.Spec.Provisioners[i], nil
+		}
+	}
+	return &buildv1.ProvisionerSpec{}, errors.Errorf("provisioner with ID %q not found in Build %q", id, build.Name)
+}
+
+// GetSecretFromSecretReference returns the secret data from the secret reference.
+func GetSecretFromSecretReference(ctx context.Context, c client.Client, secretRef corev1.SecretReference) (*corev1.Secret, error) {
+	secret := &corev1.Secret{}
+	key := client.ObjectKey{
+		Namespace: secretRef.Namespace,
+		Name:      secretRef.Name,
+	}
+	if err := c.Get(ctx, key, secret); err != nil {
+		return secret, errors.Wrapf(err, "failed to get Secret/%s", secretRef.Name)
+	}
+
+	return secret, nil
 }
 
 // KubeAwareAPIVersions is a sortable slice of kube-like version strings.

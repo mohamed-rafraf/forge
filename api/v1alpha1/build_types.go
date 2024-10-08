@@ -68,11 +68,15 @@ type ConnectorSpec struct {
 	// - username
 	// - password and/or privateKey
 	// - host
-	Credentials *corev1.SecretReference `json:"credentials,omitempty"`
+	Credentials *corev1.LocalObjectReference `json:"credentials,omitempty"`
 }
 
 // ProvisionerSpec defines the provisioner to run on the infrastructure machine
 type ProvisionerSpec struct {
+	// UUID is the unique identifier of the provisioner
+	// +optional
+	UUID *string `json:"uuid,omitempty"`
+
 	// Type is the type of provisioner to run on the infrastructure machine
 	// e.g., type: "builtin" or type: "external"
 	// +kubebuilder:validation:Required
@@ -87,8 +91,33 @@ type ProvisionerSpec struct {
 	// +optional
 	Run *string `json:"run,omitempty"`
 
+	// RunConfigMapRef is the reference of the configmap containing the script to run on the infrastructure machine
+	// +optional
+	RunConfigMapRef *corev1.ObjectReference `json:"runConfigMapRef,omitempty"`
+
 	// Ref is a reference to the provisioner object which contains the types of provisioners to run.
 	Ref *corev1.ObjectReference `json:"ref,omitempty"`
+
+	// Retries is the number of retries for the provisioner
+	// before marking it as failed
+	// +optional
+	// +kube:validation:Minimum=0
+	// +kube:validation:default=1
+	Retries *int32 `json:"retries,omitempty"`
+
+	// Status is the status of the provisioner
+	// +optional
+	// +kubebuilder:validation:Enum=Pending;Running;Completed;Failed;Unknown
+	// +kubebuilder:default="Pending"
+	Status *ProvisionerStatus `json:"status,omitempty"`
+
+	// FailureReason is the reason of the provisioner failure
+	// +optional
+	FailureReason *string `json:"failureReason,omitempty"`
+
+	// FailureMessage is the message of the provisioner failure
+	// +optional
+	FailureMessage *string `json:"failureMessage,omitempty"`
 }
 
 type ProvisionerType string
@@ -108,6 +137,16 @@ const (
 	BuildPhaseCompleted   BuildPhase = "Completed"
 	BuildPhaseFailed      BuildPhase = "Failed"
 	BuildPhaseUnknown     BuildPhase = "Unknown"
+)
+
+type ProvisionerStatus string
+
+const (
+	ProvisionerStatusPending   ProvisionerStatus = "Pending"
+	ProvisionerStatusRunning   ProvisionerStatus = "Running"
+	ProvisionerStatusCompleted ProvisionerStatus = "Completed"
+	ProvisionerStatusFailed    ProvisionerStatus = "Failed"
+	ProvisionerStatusUnknown   ProvisionerStatus = "Unknown"
 )
 
 type BuildStatus struct {

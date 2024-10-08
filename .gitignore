@@ -31,3 +31,5 @@ bin/
 
 **/.DS_Store
 
+operator
+coverage.txt

@@ -49,6 +49,8 @@ import (
 	buildv1 "github.com/forge-build/forge/api/v1alpha1"
 	"github.com/forge-build/forge/internal/external"
 	forgeerrors "github.com/forge-build/forge/pkg/errors"
+	ssh "github.com/forge-build/forge/pkg/ssh"
+	shellcontroller "github.com/forge-build/forge/provisioner/shell/controller"
 	"github.com/forge-build/forge/util/annotations"
 	utilconversion "github.com/forge-build/forge/util/conversion"
 	"github.com/forge-build/forge/util/predicates"
@@ -58,6 +60,8 @@ const (
 	// deleteRequeueAfter is how long to wait before checking again to see if the cluster still has children during
 	// deletion.
 	deleteRequeueAfter = 5 * time.Second
+
+	SSHTimeout = 10 * time.Second
 )
 
 // BuildReconciler reconciles a Build object
@@ -85,7 +89,7 @@ func (r *BuildReconciler) SetupWithManager(ctx context.Context, mgr ctrl.Manager
 		return errors.Wrap(err, "failed setting up with a controller manager")
 	}
 
-	r.recorder = mgr.GetEventRecorderFor("cluster-controller")
+	r.recorder = mgr.GetEventRecorderFor("build-controller")
 	r.externalTracker = external.ObjectTracker{
 		Controller: c,
 		Cache:      mgr.GetCache(),
@@ -486,16 +490,51 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 		return ctrl.Result{}, nil
 	}
 
-	if build.Status.Connected {
-		log.V(4).Info("Skipping reconcileConnection because it is already connected")
+	if build.Spec.Connector.Credentials == nil {
+		log.V(4).Info("Skipping reconcileConnection because secret is not yet set")
 		return ctrl.Result{}, nil
 	}
 
 	log.V(4).Info("Checking for connection to infrastructure machine")
-	conditions.MarkFalse(build, buildv1.BuildInitializedCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
+	conditions.MarkFalse(build, buildv1.MachineReadyCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
 	// TODO, Try to connect to the infrastructure machine with spec.connector.
 
+	err := r.tryToConnect(ctx, build)
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: 2 * time.Second,
+		}, errors.Wrap(err, "failed to connect to the machine")
+	}
+
+	conditions.MarkTrue(build, buildv1.MachineReadyCondition)
+
+	// Determine if the infrastructure provider machine is ready.
+	preReconcileConnected := build.Status.Connected
+	build.Status.Connected = true
+	// Only record the event if the status has changed
+	if preReconcileConnected != build.Status.Connected {
+		r.recorder.Event(build, corev1.EventTypeNormal, "MachineReady", "Machine connection established")
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *BuildReconciler) tryToConnect(ctx context.Context, build *buildv1.Build) error {
+	secret := &corev1.Secret{}
+	if err := r.Client.Get(ctx, client.ObjectKey{Namespace: build.Namespace, Name: build.Spec.Connector.Credentials.Name}, secret); err != nil {
+		return errors.Wrap(err, "failed to get secret")
+	}
+
+	sshClient, err := ssh.NewSSHClient(secret)
+	if err != nil {
+		return errors.Wrap(err, "failed to create SSH client")
+	}
+	if err = sshClient.WaitForSSH(SSHTimeout); err != nil {
+		return errors.Wrap(err, "failed to connect to the machine via ssh")
+	}
+	defer sshClient.Disconnect()
+
+	return nil
 }
 
 // reconcileProvisioners reconciles the provisioners for the Build.
@@ -515,7 +554,42 @@ func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buil
 
 	log.V(4).Info("Checking for provisioners")
 	conditions.MarkFalse(build, buildv1.ProvisionersReadyCondition, buildv1.WaitingForProvisionersReason, buildv1.ConditionSeverityInfo, "")
-	// TODO, Mark the provisioners to run.
+
+	for i := range build.Spec.Provisioners {
+		// TODO, Run the external provisioner.
+		//if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeExternal {
+		//	// add  ownerRef to the provisioner resource.
+		//	// watch the resource,
+		//	// reconcileExternal similar to infrastructure.
+		//}
+
+		// Builtin Provisioner
+		if build.Spec.Provisioners[i].Type == buildv1.ProvisionerTypeShell {
+			res, err := shellcontroller.Reconcile(ctx, r.Client, build, &build.Spec.Provisioners[i])
+			if err != nil {
+				return ctrl.Result{}, err
+			}
+			if res.Requeue || res.RequeueAfter > 0 {
+				return res, nil
+			}
+		}
+	}
+
+	provisionersReady := true
+	for _, p := range build.Spec.Provisioners {
+		status := ptr.Deref(p.Status, buildv1.ProvisionerStatusUnknown)
+		if status != buildv1.ProvisionerStatusCompleted &&
+			!(status == buildv1.ProvisionerStatusFailed && p.AllowFail) {
+			provisionersReady = false
+			break
+		}
+	}
+
+	if provisionersReady {
+		conditions.MarkTrue(build, buildv1.ProvisionersReadyCondition)
+		r.recorder.Event(build, corev1.EventTypeNormal, "ProvisionersReady", "Provisioners are ready")
+		build.Status.ProvisionersReady = true
+	}
 
 	return ctrl.Result{}, nil
 }
