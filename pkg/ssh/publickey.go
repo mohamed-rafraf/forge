@@ -11,12 +11,13 @@ import (
 )
 
 // GetCredentialsFromSecret returns the public key from a private key in PEM format.
-func GetCredentialsFromSecret(secret *corev1.Secret) (username, password, privateKey string) {
+func GetCredentialsFromSecret(secret *corev1.Secret) (username, password, privateKey, publicKey string) {
 	username = string(secret.Data["username"])
 	password = string(secret.Data["password"])
 	privateKey = string(secret.Data["privateKey"])
+	publicKey = string(secret.Data["publicKey"])
 
-	return username, password, privateKey
+	return username, password, privateKey, publicKey
 }
 
 func GetPublicKeyFromPrivateKey(privateKeyPem string) (string, error) {

@@ -486,12 +486,12 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 
 	// Skip checking if the Infrastructure not ready.
 	if !build.Status.InfrastructureReady {
-		log.V(4).Info("Skipping reconcileConnection because Infrastructure not ready yet")
+		log.Info("Skipping reconcileConnection because Infrastructure not ready yet")
 		return ctrl.Result{}, nil
 	}
 
 	if build.Spec.Connector.Credentials == nil {
-		log.V(4).Info("Skipping reconcileConnection because secret is not yet set")
+		log.Info("Skipping reconcileConnection because secret is not yet set")
 		return ctrl.Result{}, nil
 	}
 

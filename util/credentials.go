@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/cluster-api/util/record"
 
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -12,7 +13,6 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/cluster-api/util/patch"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -53,23 +53,43 @@ func EnsureCredentialsSecret(ctx context.Context, client client.Client, build *b
 				},
 			},
 		},
-		StringData: map[string]string{
-			"host":     creds.Host,
-			"username": creds.Username,
-		},
 	}
 
-	if creds.Password != "" {
-		credentials.StringData["password"] = creds.Password
-	}
-	if creds.PrivateKey != "" {
-		credentials.StringData["privateKey"] = creds.PrivateKey
-	}
-	if creds.PublicKey != "" {
-		credentials.StringData["publicKey"] = creds.PublicKey
-	}
+	op, err := controllerutil.CreateOrUpdate(ctx, client, credentials, func() error {
+		// Ensure Labels and Annotations are set
+		if credentials.Labels == nil {
+			credentials.Labels = map[string]string{}
+		}
+		credentials.Labels[buildv1.BuildNameLabel] = build.Name
 
-	op, err := controllerutil.CreateOrUpdate(ctx, client, credentials, func() error { return nil })
+		if credentials.Annotations == nil {
+			credentials.Annotations = map[string]string{}
+		}
+		credentials.Annotations[buildv1.ManagedByAnnotation] = "forge"
+		credentials.Annotations[buildv1.ProviderNameLabel] = provider
+
+		// Update the data fields
+		if credentials.StringData == nil {
+			credentials.StringData = map[string]string{}
+		}
+		if creds.Username != "" {
+			credentials.StringData["username"] = creds.Username
+		}
+		if creds.Host != "" {
+			credentials.StringData["host"] = creds.Host
+		}
+		if creds.Password != "" {
+			credentials.StringData["password"] = creds.Password
+		}
+		if creds.PrivateKey != "" {
+			credentials.StringData["privateKey"] = creds.PrivateKey
+		}
+		if creds.PublicKey != "" {
+			credentials.StringData["publicKey"] = creds.PublicKey
+		}
+
+		return nil
+	})
 	if err != nil {
 		return errors.Wrap(err, "unable to create ssh credentials secret")
 	}

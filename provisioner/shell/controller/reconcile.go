@@ -35,8 +35,8 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 			WithBuildName(build.Name).
 			WithUUID(id.String()).
 			// TODO get repo and tag from variables
-			WithRepo("medchiheb/forge-shell-provisioner").
-			WithTag("dev").
+			WithRepo("ghcr.io/mohamed-rafraf/forge-provisioner-shell").
+			WithTag("v0.0.1").
 			WithBackOffLimit(ptr.Deref(spec.Retries, 1)).
 			WithSSHCredentialsSecretName(build.Spec.Connector.Credentials.Name)
 
