@@ -189,9 +189,9 @@ func patchBuild(ctx context.Context, patchHelper *patch.Helper, build *buildv1.B
 	// patch at the end of the reconcile loop.
 	options = append(options,
 		patch.WithOwnedConditions{Conditions: []clusterv1.ConditionType{
-			clusterv1.ConditionType(buildv1.ReadyCondition),
-			clusterv1.ConditionType(buildv1.ProvisionersReadyCondition),
-			clusterv1.ConditionType(buildv1.InfrastructureReadyCondition),
+			buildv1.ReadyCondition,
+			buildv1.ProvisionersReadyCondition,
+			buildv1.InfrastructureReadyCondition,
 		}},
 	)
 	return patchHelper.Patch(ctx, build, options...)

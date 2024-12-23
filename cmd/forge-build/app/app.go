@@ -53,7 +53,10 @@ func NewControllerManagerCommand() *cobra.Command {
 		Short: "Controller manager for Forge AWS Provider",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Parse the flags from the FlagSet
-			fs.Parse(args)
+			err := fs.Parse(args)
+			if err != nil {
+				return err
+			}
 			return runControllerManager(opts)
 		},
 	}
