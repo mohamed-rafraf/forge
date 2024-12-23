@@ -191,7 +191,7 @@ func patchBuild(ctx context.Context, patchHelper *patch.Helper, build *buildv1.B
 func (r *BuildReconciler) reconcile(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
 	if build.Status.Ready {
-		log.Info("Skipping Reconcilation because the build image is done and The Infrastructure is cleaned up.")
+		log.Info("Skipping Reconciliation because the build image is done and The Infrastructure is cleaned up.")
 		return ctrl.Result{}, nil
 	}
 	phases := []func(context.Context, *buildv1.Build) (ctrl.Result, error){
