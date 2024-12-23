@@ -189,11 +189,15 @@ func patchBuild(ctx context.Context, patchHelper *patch.Helper, build *buildv1.B
 
 // reconcile handles cluster reconciliation.
 func (r *BuildReconciler) reconcile(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
+	log := ctrl.LoggerFrom(ctx)
+	if build.Status.Ready {
+		log.Info("Skipping Reconcilation because the build image is done and The Infrastructure is cleaned up.")
+		return ctrl.Result{}, nil
+	}
 	phases := []func(context.Context, *buildv1.Build) (ctrl.Result, error){
 		r.reconcileInfrastructure,
 		r.reconcileConnection,
 		r.reconcileProvisioners,
-		r.reconcileImageProvided,
 	}
 
 	res := ctrl.Result{}
@@ -458,28 +462,6 @@ func (r *BuildReconciler) reconcileExternal(ctx context.Context, build *buildv1.
 	return external.ReconcileOutput{Result: obj}, nil
 }
 
-// reconcileImageProvided reconciles the InfraBuild to process the exportation of the image.
-func (r *BuildReconciler) reconcileImageProvided(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
-	log := ctrl.LoggerFrom(ctx)
-
-	// Skip checking if the Provisioners not ready.
-	if !build.Status.ProvisionersReady {
-		log.V(4).Info("Skipping reconcileImageProvided because Provisioners not ready yet")
-		return ctrl.Result{}, nil
-	}
-
-	if build.Status.Ready && conditions.IsTrue(build, buildv1.ReadyCondition) {
-		log.V(4).Info("Skipping reconcileImageProvided because Build already provided")
-		return ctrl.Result{}, nil
-	}
-
-	log.V(4).Info("Checking for image exportation")
-	// TODO, Mark the InfraBuild to export the image.
-
-	conditions.MarkTrue(build, buildv1.BuildInitializedCondition)
-	return ctrl.Result{}, nil
-}
-
 // reconcileConnection reconciles the connection to the underlying infrastructure machine.
 func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
 	log := ctrl.LoggerFrom(ctx)
@@ -492,6 +474,11 @@ func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv
 
 	if build.Spec.Connector.Credentials == nil {
 		log.Info("Skipping reconcileConnection because secret is not yet set")
+		return ctrl.Result{}, nil
+	}
+
+	if build.Status.Ready {
+		log.Info("Skipping reconcileConnection because Image build is ready and Infrastructure is cleaned up")
 		return ctrl.Result{}, nil
 	}
 

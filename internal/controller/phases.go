@@ -33,6 +33,10 @@ func (r *BuildReconciler) reconcilePhase(_ context.Context, build *buildv1.Build
 		build.Status.SetTypedPhase(buildv1.BuildPhaseTerminating)
 	}
 
+	if build.Status.Ready {
+		build.Status.SetTypedPhase(buildv1.BuildPhaseCompleted)
+	}
+
 	// Only record the event if the status has changed
 	if preReconcilePhase != build.Status.GetTypedPhase() {
 		// Failed clusters should get a Warning event

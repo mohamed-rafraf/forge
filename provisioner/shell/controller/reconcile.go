@@ -19,7 +19,7 @@ import (
 
 const (
 	ShellProvisionerRepo = "ghcr.io/forge-build/forge-provisioner-shell"
-	ShellProvisionerTag  = "latest"
+	ShellProvisionerTag  = "dev"
 
 	ForgeCoreNamespace = "forge-core"
 )
@@ -34,9 +34,8 @@ func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, 
 			WithBuildNamespace(build.Namespace).
 			WithBuildName(build.Name).
 			WithUUID(id.String()).
-			// TODO get repo and tag from variables
-			WithRepo("ghcr.io/mohamed-rafraf/forge-provisioner-shell").
-			WithTag("v0.0.1").
+			WithRepo(ShellProvisionerRepo).
+			WithTag(ShellProvisionerTag).
 			WithBackOffLimit(ptr.Deref(spec.Retries, 1)).
 			WithSSHCredentialsSecretName(build.Spec.Connector.Credentials.Name)
 
