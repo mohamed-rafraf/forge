@@ -200,7 +200,7 @@ func patchBuild(ctx context.Context, patchHelper *patch.Helper, build *buildv1.B
 // reconcile handles cluster reconciliation.
 func (r *BuildReconciler) reconcile(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
 	if build.Status.Ready {
-		r.Logger.Info("Skipping Reconciliation because the build image is done and The Infrastructure is cleaned up.")
+		r.Logger.V(1).Info("Skipping Reconciliation because the build image is done and The Infrastructure is cleaned up.")
 		return ctrl.Result{}, nil
 	}
 	phases := []func(context.Context, *buildv1.Build) (ctrl.Result, error){
@@ -358,7 +358,7 @@ func (r *BuildReconciler) reconcileInfrastructure(ctx context.Context, build *bu
 	)
 
 	if !infraReady {
-		r.Logger.V(3).Info("Infrastructure provider is not ready yet")
+		r.Logger.V(1).Info("Infrastructure provider is not ready yet")
 		return ctrl.Result{}, nil
 	}
 
@@ -381,7 +381,7 @@ func (r *BuildReconciler) reconcileInfrastructure(ctx context.Context, build *bu
 	)
 
 	if !ready {
-		r.Logger.V(3).Info("build is not ready yet")
+		r.Logger.V(1).Info("build is not ready yet")
 		return ctrl.Result{}, nil
 	}
 
@@ -418,7 +418,7 @@ func (r *BuildReconciler) reconcileExternal(ctx context.Context, build *buildv1.
 
 	// if external ref is paused, return error.
 	if kubernetes.IsPaused(build, obj) {
-		r.Logger.V(3).Info("External object referenced is paused")
+		r.Logger.V(1).Info("External object referenced is paused")
 		return external.ReconcileOutput{Paused: true}, nil
 	}
 
@@ -469,21 +469,21 @@ func (r *BuildReconciler) reconcileExternal(ctx context.Context, build *buildv1.
 func (r *BuildReconciler) reconcileConnection(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
 	// Skip checking if the Infrastructure not ready.
 	if !build.Status.InfrastructureReady {
-		r.Logger.Info("Skipping reconcileConnection because Infrastructure not ready yet")
+		r.Logger.V(1).Info("Skipping reconcileConnection because Infrastructure not ready yet")
 		return ctrl.Result{}, nil
 	}
 
 	if build.Spec.Connector.Credentials == nil {
-		r.Logger.Info("Skipping reconcileConnection because secret is not yet set")
+		r.Logger.V(1).Info("Skipping reconcileConnection because secret is not yet set")
 		return ctrl.Result{}, nil
 	}
 
 	if build.Status.Ready {
-		r.Logger.Info("Skipping reconcileConnection because Image build is ready and Infrastructure is cleaned up")
+		r.Logger.V(1).Info("Skipping reconcileConnection because Image build is ready and Infrastructure is cleaned up")
 		return ctrl.Result{}, nil
 	}
 
-	r.Logger.V(4).Info("Checking for connection to infrastructure machine")
+	r.Logger.V(1).Info("Checking for connection to infrastructure machine")
 	conditions.MarkFalse(build, buildv1.MachineReadyCondition, buildv1.WaitingForConnectionReason, buildv1.ConditionSeverityInfo, "")
 	// TODO, Try to connect to the infrastructure machine with spec.connector.
 
@@ -529,16 +529,16 @@ func (r *BuildReconciler) tryToConnect(ctx context.Context, build *buildv1.Build
 func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buildv1.Build) (ctrl.Result, error) {
 	// Skip checking if the Infrastructure not ready.
 	if !build.Status.Connected {
-		r.Logger.V(4).Info("Skipping reconcileProvisioners because the infrastructure machine is not connected yet")
+		r.Logger.V(1).Info("Skipping reconcileProvisioners because the infrastructure machine is not connected yet")
 		return ctrl.Result{}, nil
 	}
 
 	if build.Status.ProvisionersReady {
-		r.Logger.V(4).Info("Skipping reconcileProvisioners because provisioners are ready")
+		r.Logger.V(1).Info("Skipping reconcileProvisioners because provisioners are ready")
 		return ctrl.Result{}, nil
 	}
 
-	r.Logger.V(4).Info("Checking for provisioners")
+	r.Logger.Info("Checking for provisioners")
 	conditions.MarkFalse(build, buildv1.ProvisionersReadyCondition, buildv1.WaitingForProvisionersReason, buildv1.ConditionSeverityInfo, "")
 
 	for i := range build.Spec.Provisioners {
@@ -555,6 +555,7 @@ func (r *BuildReconciler) reconcileProvisioners(ctx context.Context, build *buil
 			if err != nil {
 				return ctrl.Result{}, err
 			}
+
 			if res.Requeue || res.RequeueAfter > 0 {
 				return res, nil
 			}

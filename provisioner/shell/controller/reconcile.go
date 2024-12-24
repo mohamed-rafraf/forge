@@ -41,7 +41,6 @@ const (
 )
 
 func Reconcile(ctx context.Context, client client.Client, build *buildv1.Build, spec *buildv1.ProvisionerSpec) (_ ctrl.Result, err error) {
-
 	// Create the Job
 	if spec.UUID == nil {
 		id := uuid.New()

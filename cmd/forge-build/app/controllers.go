@@ -21,6 +21,7 @@ import (
 
 	"github.com/forge-build/forge/cmd/forge-build/app/options"
 	buildcontroller "github.com/forge-build/forge/pkg/controllers/build"
+	shellcontroller "github.com/forge-build/forge/provisioner/shell/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
 
@@ -31,6 +32,7 @@ type controllerCreator func(*options.ControllerContext) error
 // start function that will essentially run the controller.
 var AllControllers = map[string]controllerCreator{
 	buildcontroller.ControllerName: createBuildController,
+	shellcontroller.ControllerName: createShellController,
 }
 
 func createAllControllers(ctrlCtx *options.ControllerContext) error {
@@ -45,4 +47,8 @@ func createAllControllers(ctrlCtx *options.ControllerContext) error {
 
 func createBuildController(ctrlCtx *options.ControllerContext) error {
 	return buildcontroller.Add(ctrlCtx.Ctx, ctrlCtx.Mgr, 1, *ctrlCtx.Log, controller.Options{MaxConcurrentReconciles: ctrlCtx.RunOptions.WorkerNumber})
+}
+
+func createShellController(ctrlCtx *options.ControllerContext) error {
+	return shellcontroller.Add(ctrlCtx.Ctx, ctrlCtx.Mgr, *ctrlCtx.Log, "forge-core")
 }

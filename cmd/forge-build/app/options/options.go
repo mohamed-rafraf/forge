@@ -50,7 +50,7 @@ func (o *ControllerManagerRunOptions) AddFlags(fs *flag.FlagSet) {
 	fs.Var(&o.LogLevel, "log-debug", "Enables more verbose logging")
 	fs.IntVar(&o.Port, "port", 9443, "The port the controller-manager's webhook server binds to.")
 	fs.IntVar(&o.WorkerNumber, "worker-number", 10, "Number of builds to process simultaneously.")
-	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	fs.StringVar(&o.MetricsBindAddress, "metrics-bind-address", ":8081", "The address the metric endpoint binds to.")
 	fs.StringVar(&o.WorkerName, "worker-name", "", "The name of the worker that will only processes resources with label=worker-name.")
 	fs.Var(&o.LogFormat, "log-format", "Log format, one of [Console, Json]")
 }
