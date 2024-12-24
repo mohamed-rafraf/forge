@@ -122,7 +122,7 @@ func (kp *KeyPair) Fingerprint() (string, error) {
 	b, _ := base64.StdEncoding.DecodeString(string(kp.PublicKey))
 	h := md5.New()
 
-	_, err := io.WriteString(h, string(b))
+	_, err := io.Writer.Write(h, b)
 
 	if err != nil {
 		return "", err

@@ -39,7 +39,7 @@ func TestKeyPairFingerprint(t *testing.T) {
 	// Calculate the expected fingerprint
 	b, _ := base64.StdEncoding.DecodeString(publicKey)
 	h := md5.New()
-	_, err := io.WriteString(h, string(b))
+	_, err := io.Writer.Write(h, b)
 	if err != nil {
 		t.Errorf("Error writing to hash: %s", err)
 	}
