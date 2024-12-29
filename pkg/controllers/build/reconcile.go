@@ -66,6 +66,8 @@ const (
 	ControllerName = "build-controller"
 )
 
+var rawLog logr.Logger
+
 // BuildReconciler reconciles a Build object
 type BuildReconciler struct {
 	client.Client
@@ -85,7 +87,6 @@ func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log logr.Logger,
 	reconciler := &BuildReconciler{
 		Client:   mgr.GetClient(),
 		recorder: mgr.GetEventRecorderFor(ControllerName),
-		Logger:   log,
 	}
 
 	// Set up the controller with custom predicates
@@ -106,6 +107,7 @@ func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log logr.Logger,
 		Controller: controller,
 		Cache:      mgr.GetCache(),
 	}
+	rawLog = log
 	return nil
 }
 
@@ -119,6 +121,7 @@ func Add(ctx context.Context, mgr ctrl.Manager, numWorkers int, log logr.Logger,
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *BuildReconciler) Reconcile(ctx context.Context, req ctrl.Request) (_ ctrl.Result, reterr error) {
+	r.Logger = rawLog.WithValues("build", req.Name, "namespace", req.Namespace)
 	// Fetch the Cluster instance.
 	build := &buildv1.Build{}
 	if err := r.Client.Get(ctx, req.NamespacedName, build); err != nil {
